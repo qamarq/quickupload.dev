@@ -8,6 +8,8 @@ export const config = {
   },
 };
 
+// >curl -X "POST" "http://localhost:3000/api/v1/upload" -H "accept: application/json" -H "Content-Type: multipart/form-data" -F "file=@filename.ext;type=application/type-of-file"
+
 export const POST = async (req: NextRequest) => {
   const formData = await req.formData();
   const uuid = crypto.randomUUID();
