@@ -11,6 +11,7 @@ export default {
   theme: {
   	extend: {
   		colors: {
+        logo: 'hsl(var(--logo))',
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {
@@ -69,6 +70,9 @@ export default {
   					'background-position': '200%'
   				}
   			},
+      },
+      fontFamily: {
+        cal: "Cal Sans, sans-serif",
       }
   	}
   },

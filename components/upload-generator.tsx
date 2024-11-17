@@ -1,28 +1,65 @@
 "use client"
 
-import React from 'react'
+import React, { useRef } from 'react'
 import { Button } from "@/components/ui/button";
-import { Clipboard, Loader2, UploadIcon } from "lucide-react";
 import { Textarea } from './ui/textarea';
-import { InputWithSelect } from './ui/input-with-select';
 import { FILE_TYPES } from '@/constants';
 import { generateNewFile } from '@/actions/files';
 import { Label } from './ui/label';
+import { CopyButton } from './copy-button';
+import { Icons } from './icons';
+import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { requestSchema } from '@/schemas';
+import { toast } from 'sonner';
+import { Input } from "@/components/ui/input";
+import { ChevronDown } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import Captcha from 'react-google-recaptcha';
+import { Form, FormControl, FormField, FormItem, FormMessage } from './ui/form';
 
 export const UploadButton = () => {
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [curlCommand, setCurlCommand] = React.useState("");
   const [downloadLink, setDownloadLink] = React.useState("");
-  const [selectedItem, setSelectedItem] = React.useState(FILE_TYPES[0]);
-  const [fileName, setFileName] = React.useState("");
+  const captchaRef = useRef<Captcha>(null);
 
-  const handleGenerate = async () => {
+  const form = useForm<z.infer<typeof requestSchema>>({
+    resolver: zodResolver(requestSchema),
+    defaultValues: {
+      name: "",
+      extension: ".zip",
+      type: "",
+      captcha: ""
+    },
+  });
+
+  const onSubmit = async (values: z.infer<typeof requestSchema>) => {
     setIsGenerating(true);
     
     try {
-      const { curl, downloadLink } = await generateNewFile({ fileName, fileType: selectedItem });
-      setCurlCommand(curl);
-      setDownloadLink(downloadLink);
+      const captcha = await captchaRef.current?.executeAsync();
+      if (!captcha) {
+        toast.error('Captcha error');
+        return;
+      }
+      values.captcha = captcha
+      values.type = FILE_TYPES.find((item) => item.extension === values.extension)?.type || "";
+
+      const res = await generateNewFile(values);
+      if (res?.data?.success) {
+        setCurlCommand(res.data.curl);
+        setDownloadLink(res.data.downloadLink);
+        toast.success("File generated successfully");
+      } else {
+        toast.error(res?.data?.message || "An error occurred");
+      }
     } catch (error) {
       console.error(error);
     } finally {
@@ -30,26 +67,82 @@ export const UploadButton = () => {
     }
   }
 
+  const fileName = form.watch('name');
+
   return (
     <>
-      <div className='w-full flex items-center gap-3'>
-        <InputWithSelect 
-          disabled={isGenerating}
-          selectedItem={selectedItem} 
-          setSelectedItem={setSelectedItem}
-          items={FILE_TYPES} 
-          fileName={fileName}
-          setFileName={setFileName}
-        />
-        <Button variant={fileName === "" ? "default" : "rainbow"} onClick={handleGenerate} className="" disabled={isGenerating || fileName === ""}>
-          {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <UploadIcon className="w-4 h-4" />} Upload
-        </Button>
-      </div>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="w-full flex items-center gap-3" >
+          <Captcha
+              ref={captchaRef}
+              size="invisible"
+              className='hidden'
+              sitekey={process.env.NEXT_PUBLIC_CAPTCHA!}
+          />
+          <div className="space-y-2 w-full">
+            <div className="flex rounded-lg shadow-sm shadow-black/5">
+              <FormField
+                control={form.control}
+                disabled={isGenerating}
+                name="name"
+                render={({ field }) => (
+                  <FormItem className='w-full'>
+                    <FormControl>
+                      <Input
+                        value={field.value}
+                        onChange={field.onChange}
+                        className="-me-px rounded-e-none shadow-none focus-visible:z-10 relative text-right"
+                        placeholder="your-file-name"
+                        type="text"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                disabled={isGenerating}
+                name="extension"
+                render={({ field }) => (
+                  <FormItem className='relative inline-flex'>
+                    <DropdownMenu>
+                      <FormControl>
+                        <DropdownMenuTrigger
+                          className="peer inline-flex h-full appearance-none items-center rounded-none rounded-e-lg border border-input bg-background pe-8 ps-3 text-sm text-muted-foreground ring-offset-background transition-shadow hover:bg-accent hover:text-foreground focus:z-10 focus-visible:border-ring focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+                          aria-label="Domain suffix"
+                          disabled={isGenerating}
+                        >
+                          {field.value}
+                          <span className="pointer-events-none absolute inset-y-0 end-0 z-10 flex h-full w-9 items-center justify-center text-muted-foreground/80 peer-disabled:opacity-50">
+                            <ChevronDown size={16} strokeWidth={2} aria-hidden="true" role="img" />
+                          </span>
+                        </DropdownMenuTrigger>
+                      </FormControl>
+                      <DropdownMenuContent>
+                        {FILE_TYPES.map((item) => (
+                          <DropdownMenuItem key={item.extension} onSelect={() => field.onChange(item.extension)}>
+                            {item.extension}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </div>
+          <Button variant={fileName === "" ? "default" : "rainbow"} type="submit" disabled={isGenerating || fileName === ""}>
+            {isGenerating ? <Icons.Loading /> : <Icons.Upload className="w-4 h-4" />} Upload
+          </Button>
+        </form>
+      </Form>
 
       {curlCommand !== "" && (
         <div className='grid gap-4 w-full'>
           <div className='relative w-full grid gap-2'>
-            <Label>cURL command:</Label>
+            <Label className='font-semibold'>cURL command:</Label>
             <Textarea
               className="read-only:bg-muted/50 font-mono w-full resize-none"
               value={curlCommand}
@@ -57,18 +150,11 @@ export const UploadButton = () => {
               rows={7}
               placeholder="Leave a comment"
             />
-            
-            <Button 
-              variant={"ghost"} 
-              size={"icon"} 
-              onClick={() => navigator.clipboard.writeText(curlCommand)} 
-              className="absolute bottom-1 right-1"
-            >
-              <Clipboard className='w-4 h-4' />
-            </Button>
+
+            <CopyButton text={curlCommand} className="absolute bottom-1 right-1" />
           </div>
           <div className='relative w-full grid gap-2'>
-            <Label>Download link:</Label>
+            <Label className='font-semibold'>Download link:</Label>
             <Textarea
               className="read-only:bg-muted/50 font-mono w-full resize-none"
               value={downloadLink}
@@ -77,14 +163,7 @@ export const UploadButton = () => {
               placeholder="Leave a comment"
             />
             
-            <Button 
-              variant={"ghost"} 
-              size={"icon"} 
-              onClick={() => navigator.clipboard.writeText(downloadLink)} 
-              className="absolute bottom-1 right-1"
-            >
-              <Clipboard className='w-4 h-4' />
-            </Button>
+            <CopyButton text={downloadLink} className="absolute bottom-1 right-1" />
           </div>
         </div>
       )}

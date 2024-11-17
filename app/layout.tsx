@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
+import "cal-sans";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -38,6 +40,7 @@ export default function RootLayout({
           <main className="min-h-screen h-screen">
             {children}
           </main>
+          <Toaster richColors />
         </ThemeProvider>
       </body>
     </html>
