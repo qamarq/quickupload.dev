@@ -51,7 +51,8 @@ export const UploadButton = () => {
       }
       values.captcha = captcha
       values.type = FILE_TYPES.find((item) => item.extension === values.extension)?.type || "";
-
+      captchaRef.current?.reset();
+      
       const res = await generateNewFile(values);
       if (res?.data?.success) {
         setPrepareResult(res.data.prepared);

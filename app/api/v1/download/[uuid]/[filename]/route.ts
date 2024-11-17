@@ -17,14 +17,21 @@ export const GET = async (req: NextRequest, { params }: { params: Promise<{ uuid
   const filePath = path.join(process.cwd(), `files/${uuid}/${filename}`);
 
   try {
-    const file = await fs.readFile(filePath);
-    return new NextResponse(file, {
+    await prisma.file.update({
+      where: { id: uuid },
+      data: { downloads: { increment: 1 } },
+    });
+    const fileStats = await fs.stat(filePath);
+    const fileHandle = await fs.open(filePath)
+    const stream = fileHandle.readableWebStream({ type: "bytes" })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return new Response(stream as any, {
       headers: {
         "Content-Type": "application/octet-stream",
         "Content-Disposition": `attachment; filename="${filename}"`,
-        "Content-Length": dbFile.size!.toString(),
+        "Content-Length": fileStats.size.toString(),
       },
-    });
+    })
   } catch (error) {
     console.log("Error occurred ", error);
     return NextResponse.json({ message: "File not found", status: 404 });
