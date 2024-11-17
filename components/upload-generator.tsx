@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useRef } from 'react'
+import React, { useMemo, useRef } from 'react'
 import { Button } from "@/components/ui/button";
 import { Textarea } from './ui/textarea';
 import { FILE_TYPES } from '@/constants';
@@ -14,7 +14,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { requestSchema } from '@/schemas';
 import { toast } from 'sonner';
 import { Input } from "@/components/ui/input";
-import { ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,8 +25,9 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from './ui/form';
 
 export const UploadButton = () => {
   const [isGenerating, setIsGenerating] = React.useState(false);
-  const [curlCommand, setCurlCommand] = React.useState("");
+  const [prepareResult, setPrepareResult] = React.useState<{ id: string, name: string, type: string } | null>(null);
   const [downloadLink, setDownloadLink] = React.useState("");
+  const [selectedOutputType, setSelectedOutputType] = React.useState<"curl" | "powershell">("curl");
   const captchaRef = useRef<Captcha>(null);
 
   const form = useForm<z.infer<typeof requestSchema>>({
@@ -54,7 +54,7 @@ export const UploadButton = () => {
 
       const res = await generateNewFile(values);
       if (res?.data?.success) {
-        setCurlCommand(res.data.curl);
+        setPrepareResult(res.data.prepared);
         setDownloadLink(res.data.downloadLink);
         toast.success("File generated successfully");
       } else {
@@ -68,6 +68,11 @@ export const UploadButton = () => {
   }
 
   const fileName = form.watch('name');
+
+  const copyCommand = useMemo(() => {
+    if (!prepareResult) return "";
+    return `curl${selectedOutputType === "powershell" ? ".exe" : ""} -X "POST" "${process.env.NEXT_PUBLIC_URL}/api/v1/upload" -H "accept: application/json" -H "Content-Type: multipart/form-data" -H "x-access-token: ${prepareResult.id}" -F "file=@${prepareResult.name};type=${prepareResult.type}"`
+  }, [prepareResult, selectedOutputType])
 
   return (
     <>
@@ -109,13 +114,13 @@ export const UploadButton = () => {
                     <DropdownMenu>
                       <FormControl>
                         <DropdownMenuTrigger
-                          className="peer inline-flex h-full appearance-none items-center rounded-none rounded-e-lg border border-input bg-background pe-8 ps-3 text-sm text-muted-foreground ring-offset-background transition-shadow hover:bg-accent hover:text-foreground focus:z-10 focus-visible:border-ring focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
+                          className="peer inline-flex h-full appearance-none items-center rounded-none rounded-e-lg border border-l-0 border-input bg-background pe-8 ps-3 text-sm text-muted-foreground ring-offset-background transition-shadow hover:bg-accent hover:text-foreground focus:z-10 focus-visible:border-ring focus-visible:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50"
                           aria-label="Domain suffix"
                           disabled={isGenerating}
                         >
                           {field.value}
                           <span className="pointer-events-none absolute inset-y-0 end-0 z-10 flex h-full w-9 items-center justify-center text-muted-foreground/80 peer-disabled:opacity-50">
-                            <ChevronDown size={16} strokeWidth={2} aria-hidden="true" role="img" />
+                            <Icons.DropDown />
                           </span>
                         </DropdownMenuTrigger>
                       </FormControl>
@@ -139,19 +144,29 @@ export const UploadButton = () => {
         </form>
       </Form>
 
-      {curlCommand !== "" && (
-        <div className='grid gap-4 w-full'>
+      {prepareResult && (
+        <div className='grid gap-4 w-full mt-5'>
           <div className='relative w-full grid gap-2'>
-            <Label className='font-semibold'>cURL command:</Label>
+            <div className='flex items-center justify-between'>
+              <Label className='font-semibold'>cURL command:</Label>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger><Button size={"sm"} variant={"outline"}>{selectedOutputType} <Icons.DropDown /></Button></DropdownMenuTrigger>
+                <DropdownMenuContent align='end'>
+                  <DropdownMenuItem onClick={() => setSelectedOutputType("curl")}>cURL</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSelectedOutputType("powershell")}>PowerShell</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
             <Textarea
               className="read-only:bg-muted/50 font-mono w-full resize-none"
-              value={curlCommand}
+              value={copyCommand}
               readOnly
               rows={7}
               placeholder="Leave a comment"
             />
 
-            <CopyButton text={curlCommand} className="absolute bottom-1 right-1" />
+            <CopyButton text={copyCommand} className="absolute bottom-1 right-1" />
           </div>
           <div className='relative w-full grid gap-2'>
             <Label className='font-semibold'>Download link:</Label>

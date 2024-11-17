@@ -32,7 +32,7 @@ export const POST = async (req: NextRequest) => {
   if (dbFile.name !== file.name) return NextResponse.json({ error: "Invalid file name." }, { status: 400 });
 
   // check if file is smaller than 500mb
-  if (file.size > 500000000) return NextResponse.json({ error: "File is too large." }, { status: 400 });
+  if (file.size > 524288000) return NextResponse.json({ error: "File is too large." }, { status: 400 });
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const filename = file.name.replaceAll(" ", "_");

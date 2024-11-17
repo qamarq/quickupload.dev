@@ -6,8 +6,6 @@ import { actionClient } from "@/lib/safe-action";
 import { requestSchema } from "@/schemas";
 import { z } from "zod";
 
-const CURL_COMMAND_SKELETON = `curl -X "POST" "${process.env.NEXT_PUBLIC_URL}/api/v1/upload" -H "accept: application/json" -H "Content-Type: multipart/form-data" -H "x-access-token: %a" -F "file=@%b;type=%c"`
-
 export const generateNewFile = actionClient
   .schema(requestSchema)
   .action(async ({ parsedInput }: { parsedInput: z.infer<typeof requestSchema> }) => {
@@ -26,10 +24,15 @@ export const generateNewFile = actionClient
 
     return {
       success: true,
-      curl: CURL_COMMAND_SKELETON
-        .replace("%a", file.id)  
-        .replace("%b", file.name)
-        .replace("%c", file.type),
+      prepared: {
+        id: file.id,
+        name: file.name,
+        type: file.type
+      },
+      // curl: CURL_COMMAND_SKELETON
+      //   .replace("%a", file.id)  
+      //   .replace("%b", file.name)
+      //   .replace("%c", file.type),
       downloadLink: `${process.env.NEXT_PUBLIC_URL}/api/v1/download/${file.id}/${file.name}`
     }
 })
