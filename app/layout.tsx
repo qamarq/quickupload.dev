@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import "cal-sans";
 import { Footer } from "@/components/footer";
 import { Topbar } from "@/components/topbar";
+import PlausibleProvider from 'next-plausible';
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -30,6 +31,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <PlausibleProvider 
+          domain="quickupload.kamilmarczak.pl" 
+          trackOutboundLinks 
+          selfHosted
+          customDomain="https://analytics.kamilmarczak.pl"
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

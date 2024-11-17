@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import Captcha from 'react-google-recaptcha';
 import { Form, FormControl, FormField, FormItem, FormMessage } from './ui/form';
+import { usePlausible } from 'next-plausible';
 
 export const UploadButton = () => {
   const [isGenerating, setIsGenerating] = React.useState(false);
@@ -29,6 +30,7 @@ export const UploadButton = () => {
   const [downloadLink, setDownloadLink] = React.useState("");
   const [selectedOutputType, setSelectedOutputType] = React.useState<"curl" | "powershell">("curl");
   const captchaRef = useRef<Captcha>(null);
+  const plausible = usePlausible()
 
   const form = useForm<z.infer<typeof requestSchema>>({
     resolver: zodResolver(requestSchema),
@@ -44,6 +46,7 @@ export const UploadButton = () => {
     setIsGenerating(true);
     
     try {
+      plausible('File generated');
       const captcha = await captchaRef.current?.executeAsync();
       if (!captcha) {
         toast.error('Captcha error');
